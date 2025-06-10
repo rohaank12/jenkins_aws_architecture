@@ -12,8 +12,8 @@ module "autoscaling" {
   source = "./autoscaling"
   name = "asg-blue"
   create_launch_template = true
-  vpc_zone_identifier       = ["subnet-0213e27a9c4333d5c", "subnet-0aa98230ab963bdc8","subnet-03042d2319cd3310c"]
-  load_balancers            = ["wezvatech"]
+  vpc_zone_identifier       = ["subnet-0ae5072dd00e989b3","subnet-0fa888aa19b5aead7","subnet-0f1fbbdd8d05de7ea"]
+  load_balancers            = ["wezvatech-ROHAN"]
   min_size                  = 1
   max_size                  = 2
   desired_capacity          = 1
@@ -21,10 +21,10 @@ module "autoscaling" {
   health_check_grace_period = 30
 
   launch_template_name        = "lt-blue"
-  image_id          = "ami-0836ed1f613068bd6"
-  key_name          = "wezvatech2025"
+  image_id          = "ami-03ba74ee2d8f47267"
+  key_name          = "ninja"
   instance_type     = "t3.micro"
-  security_groups   = ["sg-0fed46a4bd7b55975"]
+  security_groups   = ["sg-0829115cdf633df80"]
 }
 
 #---------------------------------------------#
