@@ -7,7 +7,7 @@
 data "aws_availability_zones" "all" {}
 
 
-resource "aws_launch_template" "demo" {
+resource "aws_launch_template" "bl_template" {
   count = var.create_launch_template ? 1 : 0
 
   name        = var.launch_template_name
