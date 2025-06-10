@@ -9,7 +9,7 @@ provider "aws" {
 
 module "elb" {
   source = "./loadbalancer"
-  vpc_id = "vpc-01cb1bc7e3d81f545"
+  vpc_id = "vpc-0f06be107df8fef46"
   internal        = false
 
   sg_public_ingress = [
@@ -22,7 +22,7 @@ module "elb" {
 
   sg_public_egress  =  [443,8080]
 
-  subnets         = ["subnet-0213e27a9c4333d5c", "subnet-0aa98230ab963bdc8","subnet-03042d2319cd3310c"]
+  subnets         = ["subnet-0ae5072dd00e989b3","subnet-0fa888aa19b5aead7","subnet-0f1fbbdd8d05de7ea"]
 
   listener = [
     {
@@ -47,4 +47,3 @@ module "elb" {
 # Author: Adam WezvaTechnologies
 # Call/Whatsapp: +91-9739110917
 #---------------------------------------------#
-
