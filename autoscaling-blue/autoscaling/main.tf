@@ -23,7 +23,7 @@ resource "aws_launch_template" "demo" {
   }
 }
 
-resource "aws_autoscaling_group" "demo" {
+resource "aws_autoscaling_group" "blue1" {
   #availability_zones = data.aws_availability_zones.all.names
   vpc_zone_identifier = var.vpc_zone_identifier
   load_balancers = var.load_balancers
