@@ -48,14 +48,14 @@ resource "aws_autoscaling_group" "blue1" {
   }
 
   launch_template {
-    id      = aws_launch_template.demo[0].id
+    id      = aws_launch_template.b1_template[0].id
     version = "$Latest"
   }
 }
 
 resource "aws_autoscaling_policy" "demo" {
   name                   = "test_scale_down"
-  autoscaling_group_name = aws_autoscaling_group.demo.name
+  autoscaling_group_name = aws_autoscaling_group.blue1.name
   adjustment_type        = "ChangeInCapacity"
   #cooldown = 300
   policy_type            = "TargetTrackingScaling"
