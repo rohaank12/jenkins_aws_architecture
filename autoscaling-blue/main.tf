@@ -21,7 +21,7 @@ module "autoscaling" {
   health_check_grace_period = 30
 
   launch_template_name        = "lt-blue"
-  image_id          = "ami-03ba74ee2d8f47267"
+  image_id          = "ami-092830f2395ed0eb6"
   key_name          = "ninja"
   instance_type     = "t3.micro"
   security_groups   = ["sg-0829115cdf633df80"]
