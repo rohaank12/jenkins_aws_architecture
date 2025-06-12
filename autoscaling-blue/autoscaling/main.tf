@@ -7,7 +7,7 @@
 data "aws_availability_zones" "all" {}
 
 
-resource "aws_launch_template" "bl_template" {
+resource "aws_launch_template" "blue" {
   count = var.create_launch_template ? 1 : 0
 
   name        = var.launch_template_name
@@ -23,7 +23,7 @@ resource "aws_launch_template" "bl_template" {
   }
 }
 
-resource "aws_autoscaling_group" "blue1" {
+resource "aws_autoscaling_group" "blue" {
   #availability_zones = data.aws_availability_zones.all.names
   vpc_zone_identifier = var.vpc_zone_identifier
   load_balancers = var.load_balancers
@@ -48,14 +48,14 @@ resource "aws_autoscaling_group" "blue1" {
   }
 
   launch_template {
-    id      = aws_launch_template.b1_template[0].id
+    id      = aws_launch_template.blue[0].id
     version = "$Latest"
   }
 }
 
-resource "aws_autoscaling_policy" "demo" {
+resource "aws_autoscaling_policy" "blue" {
   name                   = "test_scale_down"
-  autoscaling_group_name = aws_autoscaling_group.blue1.name
+  autoscaling_group_name = aws_autoscaling_group.blue.name
   adjustment_type        = "ChangeInCapacity"
   #cooldown = 300
   policy_type            = "TargetTrackingScaling"
