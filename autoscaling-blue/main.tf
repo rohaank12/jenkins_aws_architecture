@@ -13,7 +13,7 @@ module "autoscaling" {
   name = "asg-blue"
   create_launch_template = true
   vpc_zone_identifier       = ["subnet-0ae5072dd00e989b3","subnet-0fa888aa19b5aead7","subnet-0f1fbbdd8d05de7ea"]
-  load_balancers            = ["wezvatech-ROHAN"]
+  load_balancers            = ["wezvatech"]
   min_size                  = 1
   max_size                  = 2
   desired_capacity          = 1
