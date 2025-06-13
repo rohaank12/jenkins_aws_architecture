@@ -63,7 +63,7 @@ backup_jobs() {
     exit 1
   fi
 
-  rm -rf "${ARC_DIR}" "{$TMP_TAR_NAME}"
+  sudo rm -rf "${ARC_DIR}" "{$TMP_TAR_NAME}"
   for plugin in plugins jobs users secrets nodes; do
     mkdir -p "${ARC_DIR}/${plugin}"
     log_message "Backup folder for tar created .."
