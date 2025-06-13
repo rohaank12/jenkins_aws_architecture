@@ -1,40 +1,33 @@
 pipeline {
     agent any
 
-    environment {
-        JENKINS_HOME_PATH = '/var/lib/jenkins'
-        BACKUP_SCRIPT_PATH = './jenkins_backup.sh'
-    }
-
     stages {
-        stage('Prepare Backup Script') {
+        stage('Run Backup Script') {
             steps {
-                script {
-                    sh "chmod +x ${BACKUP_SCRIPT_PATH}"
-                }
-            }
-        }
+                dir("./jenkins-backup") {
+                    // Make the script executable
+                    sh "chmod +x ./jenkins_backup.sh"
 
-        stage('Run Jenkins Backup') {
-            steps {
-                // Use withCredentials for secure AWS secrets (if not using IAM roles)
-                withCredentials([
-                    awsAccessKeyId('AWS_ACCESS_KEY_ID'),
-                    awsSecretKey('AWS_SECRET_ACCESS_KEY')
-                ]) {
-                    sh(script: """
-                        sudo ${BACKUP_SCRIPT_PATH} \\
-                            ${JENKINS_HOME_PATH} \\
-                            "${AWS_ACCESS_KEY_ID}" \\
-                            "${AWS_SECRET_ACCESS_KEY}"
-                    """,
-                    readTimeout: 1200
-                    )
+                    // Use withCredentials to securely provide the actual secret values
+                    // The 'variable' names here (e.g., 'ACCESS_KEY_VALUE') will be
+                    // the environment variables available inside this block.
+                    withCredentials([
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'ACCESS_KEY_VALUE'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'SECRET_KEY_VALUE')
+                    ]) {
+                        // Execute the backup script with sudo and the timeout
+                        // The variables ACCESS_KEY_VALUE and SECRET_KEY_VALUE
+                        // now hold the actual secret values.
+                        sh(script: """
+                            sudo ./jenkins_backup.sh /var/lib/jenkins "${ACCESS_KEY_VALUE}" "${SECRET_KEY_VALUE}"
+                        """,
+                        readTimeout: 1800 // Set timeout to 1800 seconds (30 minutes). Adjust as needed.
+                        )
+                    }
                 }
             }
         }
     }
-
     post {
         always {
             echo "Backup pipeline finished."
