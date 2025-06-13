@@ -17,19 +17,18 @@ pipeline {
 
         stage('Run Jenkins Backup') {
             steps {
-                # Use withCredentials for secure AWS secrets (if not using IAM roles)
+                // Use withCredentials for secure AWS secrets (if not using IAM roles)
                 withCredentials([
-                    awsAccessKeyId('your-aws-access-key-id-credential-id'),
-                    awsSecretKey('your-aws-secret-access-key-credential-id')
+                    awsAccessKeyId('AWS_ACCESS_KEY_ID'),
+                    awsSecretKey('AWS_SECRET_ACCESS_KEY')
                 ]) {
                     sh(script: """
-                        sudo ${BACKUP_SCRIPT_PATH} \
-                            ${JENKINS_HOME_PATH} \
-                            "${AWS_ACCESS_KEY_ID}" \
+                        sudo ${BACKUP_SCRIPT_PATH} \\
+                            ${JENKINS_HOME_PATH} \\
+                            "${AWS_ACCESS_KEY_ID}" \\
                             "${AWS_SECRET_ACCESS_KEY}"
                     """,
-                    # --- ADD THIS LINE BELOW ---
-                    readTimeout: 1200 # Set timeout to 1200 seconds (20 minutes). Adjust as needed.
+                    readTimeout: 1200
                     )
                 }
             }
