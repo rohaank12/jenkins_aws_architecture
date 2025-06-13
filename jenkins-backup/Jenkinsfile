@@ -9,20 +9,17 @@ pipeline {
                     sh "chmod +x ./jenkins_backup.sh"
 
                     // Use withCredentials to securely provide the actual secret values
-                    // The 'variable' names here (e.g., 'ACCESS_KEY_VALUE') will be
-                    // the environment variables available inside this block.
                     withCredentials([
                         string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'ACCESS_KEY_VALUE'),
                         string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'SECRET_KEY_VALUE')
                     ]) {
-                        // Execute the backup script with sudo and the timeout
-                        // The variables ACCESS_KEY_VALUE and SECRET_KEY_VALUE
-                        // now hold the actual secret values.
-                        sh(script: """
-                            sudo ./jenkins_backup.sh /var/lib/jenkins "${ACCESS_KEY_VALUE}" "${SECRET_KEY_VALUE}"
-                        """,
-                        readTimeout: 1800 // Set timeout to 1800 seconds (30 minutes). Adjust as needed.
-                        )
+                        // --- THIS IS THE CRITICAL CORRECTION ---
+                        // Wrap the shell command with the 'timeout' step
+                        timeout(time: 30, unit: 'MINUTES') { // Set timeout to 30 minutes. Adjust 'time' and 'unit' as needed.
+                            sh """
+                                sudo ./jenkins_backup.sh /var/lib/jenkins "${ACCESS_KEY_VALUE}" "${SECRET_KEY_VALUE}"
+                            """
+                        }
                     }
                 }
             }
