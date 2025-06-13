@@ -1,33 +1,30 @@
+
+//---------------------------------------------
+// Author: Adam WezvaTechnologies
+// Call/Whatsapp: +91-9739110917
+//---------------------------------------------
+
 pipeline {
-    agent any
+agent any
 
-    stages {
-        stage('Run Backup Script') {
-            steps {
-                dir("./jenkins-backup") {
-                    // Make the script executable
-                    sh "chmod +x ./jenkins_backup.sh"
-
-                    // Use withCredentials to securely provide the actual secret values
-                    withCredentials([
-                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'ACCESS_KEY_VALUE'),
-                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'SECRET_KEY_VALUE')
-                    ]) {
-                        // --- THIS IS THE CRITICAL CORRECTION ---
-                        // Wrap the shell command with the 'timeout' step
-                        timeout(time: 30, unit: 'MINUTES') { // Set timeout to 30 minutes. Adjust 'time' and 'unit' as needed.
-                            sh """
-                                sudo ./jenkins_backup.sh /var/lib/jenkins "${ACCESS_KEY_VALUE}" "${SECRET_KEY_VALUE}"
-                            """
-                        }
-                    }
-                }
-            }
-        }
-    }
-    post {
-        always {
-            echo "Backup pipeline finished."
-        }
-    }
+// Ensure environment variables are set as secret text type //
+environment {
+        AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
 }
+stages{
+  stage('Run Backup Script'){
+    steps {
+        dir("./jenkins-backup"){
+          sh "ls"
+          sh "chmod +x ./jenkins_backup.sh && sudo ./jenkins_backup.sh /var/lib/jenkins $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY"
+        }
+          }
+    }
+  }
+}
+
+//---------------------------------------------
+// Author: Adam WezvaTechnologies
+// Call/Whatsapp: +91-9739110917
+//---------------------------------------------
