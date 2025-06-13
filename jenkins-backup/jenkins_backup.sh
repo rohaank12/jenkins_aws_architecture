@@ -1,121 +1,95 @@
 #!/bin/bash
 
-#---------------------------------------------#
-# Author: Adam WezvaTechnologies
-# Call/Whatsapp: +91-9739110917
-#---------------------------------------------#
-
-
-# Ensure script is run with root privileges
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run this script as root or sudo privileges "
-  exit 1
-fi
-
-# Define variables
-JENKINS_HOME="$1"
-AWS_ACCESS_KEY_ID="$2"
-AWS_SECRET_ACCESS_KEY="$3"
-DEST_FILE="/tmp/test"
-TMP_DIR="/tmp"
-ARC_NAME="jenkins-backup"
-ARC_DIR="${TMP_DIR}/${ARC_NAME}"
-TMP_TAR_NAME="${TMP_DIR}/jenkins-archive.tar.gz"
-FINAL_TAR_NAME=jenkins-archive-$(date -d "today" +"%Y%m%d%H%M").tar.gz
+# --- Configuration Variables ---
+# Set the path to your Jenkins home directory
+JENKINS_HOME="/var/lib/jenkins" # Assuming this is correct
+# S3 Bucket where backups will be stored
+S3_BUCKET_NAME="wezvatech-jenkins-backup-88882527" # Your S3 bucket name
+# Log file path
 LOG_FILE="/var/log/jenkins_backup.log"
+
+# --- Script Variables (DO NOT MODIFY) ---
+TIMESTAMP=$(date -d "today" +"%Y%m%d%H%M%S")
+BACKUP_ARCHIVE_NAME="jenkins-archive-${TIMESTAMP}.tar.gz"
+# Use mktemp for a secure and unique temporary directory
+TMP_BACKUP_DIR=$(mktemp -d "/tmp/jenkins_backup_XXXXXX")
+
+# --- Functions ---
 
 # Function to generate logs
 log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> $LOG_FILE
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
 }
+
+# Function to handle script exit (cleanup temp directory)
+cleanup() {
+  log_message "Cleaning up temporary directory: $TMP_BACKUP_DIR"
+  rm -rf "$TMP_BACKUP_DIR"
+}
+trap cleanup EXIT # Ensure cleanup happens on exit, even on error
 
 # Function to upload backup tar to S3 bucket
 copyto_s3() {
-    AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws s3 cp ${FINAL_TAR_NAME} s3://wezvatech-jenkins-backup-88882527/
-    exitcode=$?
-    if [ "$exitcode" != "1" ] && [ "$exitcode" != "0" ]; then
-      exit $exitcode
-    fi
-    log_message "Copied Jenkins backup tar to S3 bucket .."
+  log_message "Uploading backup to s3://${S3_BUCKET_NAME}/${BACKUP_ARCHIVE_NAME}..."
+  # Rely on IAM Role for AWS CLI authentication (BEST PRACTICE)
+  # If you must use explicit keys, uncomment and provide them securely:
+  # AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID_VAR}" AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY_VAR}" \
+  aws s3 cp "${TMP_BACKUP_DIR}/${BACKUP_ARCHIVE_NAME}" "s3://${S3_BUCKET_NAME}/"
+  local exitcode=$?
+  if [ $exitcode -ne 0 ]; then
+    log_message "ERROR: S3 upload failed with exit code $exitcode"
+    return 1 # Indicate failure
+  fi
+  log_message "Successfully copied Jenkins backup tar to S3 bucket."
+  return 0 # Indicate success
 }
 
-# Function to take backup
-backup_jobs() {
-   run_in_path="$1"
+# --- Main Script Execution ---
 
-  if [ -d "${run_in_path}" ]; then
-    cd "${run_in_path}"
+log_message "--- Starting Jenkins Backup Process ---"
 
-    find . -maxdepth 1 -type d | while read job_name; do
-      [ "${job_name}" = "." ] && continue
-      [ "${job_name}" = ".." ] && continue
-      [ -d "${JENKINS_HOME}/jobs/${job_name}" ] && mkdir -p "${ARC_DIR}/jobs/${job_name}/"
-      find "${JENKINS_HOME}/jobs/${job_name}/" -maxdepth 1  \( -name "builds" -o -name "*.xml" -o -name "nextBuildNumber" \) -print0 | xargs -0 -I {} cp -R {} "${ARC_DIR}/jobs/${job_name}/"
-    done
+# Ensure Jenkins home directory exists
+if [ ! -d "$JENKINS_HOME" ]; then
+  log_message "ERROR: Jenkins home directory '$JENKINS_HOME' not found."
+  exit 1
+fi
 
-    cd -
-  fi
-}
+# 1. Stop Jenkins for a consistent backup
+log_message "Attempting to stop Jenkins service..."
+sudo systemctl stop jenkins || { log_message "WARNING: Could not stop Jenkins service. Backup might be inconsistent."; }
+# Give it a moment to stop
+sleep 5
 
-# main function call
-  if [ -z "${JENKINS_HOME}" ] ; then
-    echo "usage: $(basename $0) /path/to/jenkins_home"
-    exit 1
-  fi
+# 2. Perform the backup
+log_message "Creating backup of Jenkins Home directory: $JENKINS_HOME"
+pushd "$JENKINS_HOME" > /dev/null || { log_message "ERROR: Failed to change to Jenkins home directory. Exiting."; exit 1; }
 
-  rm -rf "${ARC_DIR}" "{$TMP_TAR_NAME}"
-  for plugin in plugins jobs users secrets nodes; do
-    mkdir -p "${ARC_DIR}/${plugin}"
-    log_message "Backup folder for tar created .."
-  done
+# Exclude unnecessary directories like workspace and builds to keep backup small
+# Adjust these excludes based on what you truly need for recovery
+tar -czf "${TMP_BACKUP_DIR}/${BACKUP_ARCHIVE_NAME}" \
+  --exclude="workspace" \
+  --exclude="builds" \
+  --exclude="plugins/*.jpi.pinned" \
+  . # Backup the current directory ($JENKINS_HOME)
 
-  cp "${JENKINS_HOME}/"*.xml "${ARC_DIR}"
+popd > /dev/null # Go back to original directory
+local tar_exitcode=$?
+if [ $tar_exitcode -ne 0 ]; then
+  log_message "ERROR: Failed to create backup archive. Tar exit code: $tar_exitcode"
+  exit 1
+fi
+log_message "Backup archive created: ${TMP_BACKUP_DIR}/${BACKUP_ARCHIVE_NAME}"
 
-  # Copy only the plugin files
-  cp "${JENKINS_HOME}/plugins/"*.[hj]pi "${ARC_DIR}/plugins"
-  log_message "Plugins dir copied .."
+# 3. Upload to S3
+if ! copyto_s3; then
+  log_message "ERROR: S3 upload failed. Exiting."
+  exit 1
+fi
 
-  # Copy the users
-  if [ "$(ls -A ${JENKINS_HOME}/users/)" ]; then
-    cp -R "${JENKINS_HOME}/users/"* "${ARC_DIR}/users"
-    log_message "Users dir copied .."
-  fi
+# 4. Start Jenkins after backup
+log_message "Attempting to start Jenkins service..."
+sudo systemctl start jenkins || { log_message "WARNING: Could not start Jenkins service after backup."; }
+sleep 5 # Give it a moment to start
 
-  # Copy secrets
-  if [ "$(ls -A ${JENKINS_HOME}/secrets/)" ] ; then
-    cp -R "${JENKINS_HOME}/secrets/"* "${ARC_DIR}/secrets"
-    log_message "Secrets dir copied .."
-  fi
-
-  # Copy Slave nodes
-  if [ "$(ls -A ${JENKINS_HOME}/nodes/)" ] ; then
-    cp -R "${JENKINS_HOME}/nodes/"* "${ARC_DIR}/nodes"
-    log_message "Nodes dir copied .."
-  fi
-
-  # Recursively copy all the jobs
-  if [ "$(ls -A ${JENKINS_HOME}/jobs/)" ] ; then
-    backup_jobs ${JENKINS_HOME}/jobs/
-    log_message "Jobs dir copied .."
-  fi
-
-  # Create archive
-  cd "${TMP_DIR}"
-  tar -czvf "${TMP_TAR_NAME}" "${ARC_NAME}/"*
-  log_message "Tar file created .."
-  cd -
-
-  cp "${TMP_TAR_NAME}" ${FINAL_TAR_NAME}
-  log_message "Tar file renamed with timestamp .."
-  rm -rf "${ARC_DIR}"
-
-  # Copy the tar to S3
-  copyto_s3
-  echo "Successfully backedup Jenkins home dir ..."
-
-  exit 0
-
-#---------------------------------------------#
-# Author: Adam WezvaTechnologies
-# Call/Whatsapp: +91-9739110917
-#---------------------------------------------#
+log_message "--- Jenkins Backup Process Completed ---"
+exit 0
