@@ -1,0 +1,103 @@
+- name: Ensure Jenkins APT repository key is installed
+  ansible.builtin.get_url:
+    url: "{{ jenkins_repo }}/jenkins.io-2023.key"
+    dest: "/usr/share/keyrings/jenkins-keyring.asc"
+    mode: '0644'
+
+- name: Ensure Jenkins repository is configured
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] {{ jenkins_repo }} binary/"
+    state: present
+    filename: jenkins
+
+- name: Update apt cache (jenkins role)
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Jenkins
+  ansible.builtin.apt:
+    name: jenkins
+    state: latest
+
+- name: Ensure Jenkins user can run sudo without password
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    line: 'jenkins ALL=(ALL) NOPASSWD:ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+    state: present
+    mode: '0440'
+
+- name: Stop Jenkins service before EFS mount
+  ansible.builtin.service:
+    name: jenkins
+    state: stopped
+  ignore_errors: yes # In case Jenkins isn't running for the first time or is already stopped
+
+- name: Ensure /var/lib/jenkins directory exists
+  ansible.builtin.file:
+    path: /var/lib/jenkins
+    state: directory
+
+- name: Ensure EFS is mounted at /var/lib/jenkins and entry exists in /etc/fstab
+  ansible.posix.mount:
+    path: /var/lib/jenkins
+    src: "{{ efs_id }}.efs.ap-south-1.amazonaws.com:/" # Uses efs_id from vars/main.yml
+    fstype: nfs4
+    opts: "nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,_netdev,noatime,nodiratime"
+    state: mounted # This will mount it and add to fstab
+
+- name: Change permission of mounted EFS back to Jenkins user
+  ansible.builtin.file:
+    path: /var/lib/jenkins
+    owner: jenkins
+    group: jenkins
+    state: directory
+    recurse: yes
+
+- name: Mount all file systems from fstab (if not already mounted)
+  ansible.builtin.command: mount -a
+  when: ansible_mounts | selectattr('mount', '==', '/var/lib/jenkins') | list | length == 0
+
+- name: Start Jenkins service for plugin installation
+  ansible.builtin.service:
+    name: jenkins
+    state: started
+
+- name: Wait for Jenkins to be ready for API calls
+  ansible.builtin.wait_for:
+    port: 8080
+    host: localhost
+    delay: 10
+    timeout: 120
+
+- name: Install Jenkins Blue Ocean plugin
+  community.general.jenkins_plugin:
+    name: blueocean
+    state: present
+    url: http://localhost:8080
+    timeout: 180
+    updates_expiration: 3600
+    # Add authentication details if your Jenkins requires it for API calls
+    # username: "{{ jenkins_api_username | default(omit) }}"
+    # password: "{{ jenkins_api_password | default(omit) }}"
+  register: jenkins_plugin_result # Register result to check for changes
+
+- name: Ensure Jenkins service is restarted after plugin installation (if required)
+  ansible.builtin.service:
+    name: jenkins
+    state: restarted
+  when: jenkins_plugin_result.changed # Only restart if a plugin was actually installed/updated
+  ignore_errors: yes
+
+- name: Check if port 8080 is listening after all installations
+  ansible.builtin.wait_for:
+    port: 8080
+    timeout: 180
+    msg: "Timeout waiting for 8080 to respond after plugin install"
+  register: port_check_final
+  ignore_errors: yes
+
+- name: Print message if Jenkins is not running after plugin install
+  ansible.builtin.debug:
+    msg: "*== Jenkins NOT Running after Blue Ocean plugin install ==*"
+  when: port_check_final.failed == true

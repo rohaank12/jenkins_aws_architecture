@@ -1,0 +1,17 @@
+---
+# Variables for Jenkins role
+# jenkins_repo is defined in the main playbook vars, but can be overridden here if needed.
+# java_package is defined in the main playbook vars.
+
+# EFS File System ID (Crucial for EFS Mount)
+# IMPORTANT: This variable MUST be set. If running via Packer/Terraform,
+# it will be passed as an extra var. For local testing, define it in playbook.yml or here.
+# Example: efs_id: "fs-0abcdef1234567890"
+# (Assuming 'efs' is the variable name you pass from Packer/Terraform)
+efs_id: "{{ efs }}" # This maps the 'efs' extra var passed from Packer/Terraform to 'efs_id' within the role.
+
+# Jenkins admin password for plugin installation (if required by your Jenkins setup)
+# This is typically only needed if Jenkins security is configured to require auth for API calls
+# It's recommended to retrieve the initialAdminPassword or use an unauthenticated state for AMI build.
+# jenkins_api_username: "admin"
+# jenkins_api_password: "your_initial_admin_password"

@@ -1,0 +1,8 @@
+- name: Update apt cache (awscli role)
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install awscli
+  ansible.builtin.package:
+    name: awscli
+    state: present
