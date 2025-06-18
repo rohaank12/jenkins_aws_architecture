@@ -31,7 +31,7 @@ log_message() {
 
 # Function to upload backup tar to S3 bucket
 copyto_s3() {
-    AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws s3 cp ${FINAL_TAR_NAME} s3://wezvatech-jenkins-backup-9739110917adam/
+    AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws s3 cp ${FINAL_TAR_NAME} s3://wezvatech-jenkins-backup-88882527/
     exitcode=$?
     if [ "$exitcode" != "1" ] && [ "$exitcode" != "0" ]; then
       exit $exitcode
@@ -63,7 +63,7 @@ backup_jobs() {
     exit 1
   fi
 
-  rm -rf "${ARC_DIR}" "{$TMP_TAR_NAME}"
+  sudo rm -rf "${ARC_DIR}" "{$TMP_TAR_NAME}"
   for plugin in plugins jobs users secrets nodes; do
     mkdir -p "${ARC_DIR}/${plugin}"
     log_message "Backup folder for tar created .."

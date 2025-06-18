@@ -4,7 +4,7 @@ provider "aws" {
 
 # Create S3 bucket
 resource "aws_s3_bucket" "example_bucket" {
-  bucket = "wezvatech-jenkins-backup-9739110917"
+  bucket = "wezvatech-jenkins-backup-8882527"
 }
 
 # Enable versioning
