@@ -1,0 +1,32 @@
+- name: Update apt cache (trivy role)
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install prerequisite packages for Trivy
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - gnupg
+    state: present
+
+- name: Download Trivy GPG key
+  ansible.builtin.get_url:
+    url: https://aquasecurity.github.io/trivy-repo/deb/public.key
+    dest: /etc/apt/keyrings/trivy.asc
+    mode: '0644'
+    force: yes # Ensure it's updated if key changes
+
+- name: Add Trivy repository (using signed-by)
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/trivy.asc] https://aquasecurity.github.io/trivy-repo/deb {{ ansible_distribution_release }} main"
+    state: present
+    filename: trivy
+
+- name: Update apt cache after adding Trivy repo
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Trivy
+  ansible.builtin.package:
+    name: trivy
+    state: present

@@ -1,0 +1,8 @@
+- name: Update apt cache (maven role)
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install Maven
+  ansible.builtin.package:
+    name: maven
+    state: present

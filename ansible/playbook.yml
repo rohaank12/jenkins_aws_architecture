@@ -1,17 +1,13 @@
-- name: Setup Jenkins Master Server
-  hosts: your_target_servers # Replace with your actual inventory group or hostname (e.g., 'jenkins_masters')
+- name: Setup Build Server Tools
+  hosts: your_build_server_group # Replace with your actual inventory group or hostname (e.g., 'build_servers')
   become: yes # Run all tasks with sudo privileges
 
   vars:
-    # Define common variables here, or in group_vars/all.yml
-    # Make sure 'efs' variable is passed from Packer/Terraform if used for AMI build
-    # For testing outside Packer, you can hardcode it here or prompt (not recommended)
-    # e.g., efs: "fs-0abcdef1234567890"
-
-    jenkins_repo: "https://pkg.jenkins.io/debian-stable"
-    java_package: "openjdk-17-jdk" # Explicitly setting Java 17
+    java_package: "openjdk-17-jdk" # Explicitly setting Java 17 package name
+    docker_user: "{{ ansible_user }}" # User to add to the docker group (typically the SSH user)
 
   roles:
-    - role: awscli
-    - role: java17
-    - role: jenkins
+    - role: jdk17
+    - role: maven
+    - role: docker
+    - role: trivy
