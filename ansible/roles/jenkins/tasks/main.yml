@@ -27,36 +27,7 @@
     state: present
     mode: '0440'
 
-- name: Stop Jenkins service before EFS mount
-  ansible.builtin.service:
-    name: jenkins
-    state: stopped
-  ignore_errors: yes # In case Jenkins isn't running for the first time or is already stopped
 
-- name: Ensure /var/lib/jenkins directory exists
-  ansible.builtin.file:
-    path: /var/lib/jenkins
-    state: directory
-
-- name: Ensure EFS is mounted at /var/lib/jenkins and entry exists in /etc/fstab
-  ansible.posix.mount:
-    path: /var/lib/jenkins
-    src: "{{ efs_id }}.efs.ap-south-1.amazonaws.com:/" # Uses efs_id from vars/main.yml
-    fstype: nfs4
-    opts: "nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,_netdev,noatime,nodiratime"
-    state: mounted # This will mount it and add to fstab
-
-- name: Change permission of mounted EFS back to Jenkins user
-  ansible.builtin.file:
-    path: /var/lib/jenkins
-    owner: jenkins
-    group: jenkins
-    state: directory
-    recurse: yes
-
-- name: Mount all file systems from fstab (if not already mounted)
-  ansible.builtin.command: mount -a
-  when: ansible_mounts | selectattr('mount', '==', '/var/lib/jenkins') | list | length == 0
 
 - name: Start Jenkins service for plugin installation
   ansible.builtin.service:
@@ -70,17 +41,7 @@
     delay: 10
     timeout: 120
 
-- name: Install Jenkins Blue Ocean plugin
-  community.general.jenkins_plugin:
-    name: blueocean
-    state: present
-    url: http://localhost:8080
-    timeout: 180
-    updates_expiration: 3600
-    # Add authentication details if your Jenkins requires it for API calls
-    # username: "{{ jenkins_api_username | default(omit) }}"
-    # password: "{{ jenkins_api_password | default(omit) }}"
-  register: jenkins_plugin_result # Register result to check for changes
+
 
 - name: Ensure Jenkins service is restarted after plugin installation (if required)
   ansible.builtin.service:
