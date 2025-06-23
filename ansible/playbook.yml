@@ -1,13 +1,9 @@
-- name: Setup Build Server Tools
-  hosts: your_build_server_group # Replace with your actual inventory group or hostname (e.g., 'build_servers')
-  become: yes # Run all tasks with sudo privileges
-
-  vars:
-    java_package: "openjdk-21-jdk" # Explicitly setting Java 17 package name
-    docker_user: "{{ ansible_user }}" # User to add to the docker group (typically the SSH user)
+---
+- name: Install Java 21, Jenkins, and Docker
+  hosts: localhost
+  become: true
 
   roles:
-    - role: jdk21
-    - role: maven
-    - role: docker
-    - role: trivy
+    - java
+    - jenkins
+    - docker

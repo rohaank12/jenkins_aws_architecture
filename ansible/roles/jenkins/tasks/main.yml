@@ -1,64 +1,27 @@
-- name: Ensure Jenkins APT repository key is installed
-  ansible.builtin.get_url:
-    url: "{{ jenkins_repo }}/jenkins.io-2023.key"
-    dest: "/usr/share/keyrings/jenkins-keyring.asc"
-    mode: '0644'
-
-- name: Ensure Jenkins repository is configured
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] {{ jenkins_repo }} binary/"
+---
+- name: Add Jenkins key
+  apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
     state: present
-    filename: jenkins
 
-- name: Update apt cache (jenkins role)
-  ansible.builtin.apt:
-    update_cache: yes
+- name: Add Jenkins repository
+  apt_repository:
+    repo: 'deb https://pkg.jenkins.io/debian-stable binary/'
+    state: present
+
+- name: Install Java (required for Jenkins)
+  apt:
+    name: openjdk-17-jdk
+    state: present
 
 - name: Install Jenkins
-  ansible.builtin.apt:
+  apt:
     name: jenkins
-    state: latest
-
-- name: Ensure Jenkins user can run sudo without password
-  ansible.builtin.lineinfile:
-    path: /etc/sudoers
-    line: 'jenkins ALL=(ALL) NOPASSWD:ALL'
-    validate: '/usr/sbin/visudo -cf %s'
     state: present
-    mode: '0440'
+    update_cache: yes
 
-
-
-- name: Start Jenkins service for plugin installation
-  ansible.builtin.service:
+- name: Start and enable Jenkins
+  systemd:
     name: jenkins
     state: started
-
-- name: Wait for Jenkins to be ready for API calls
-  ansible.builtin.wait_for:
-    port: 8080
-    host: localhost
-    delay: 10
-    timeout: 120
-
-
-
-- name: Ensure Jenkins service is restarted after plugin installation (if required)
-  ansible.builtin.service:
-    name: jenkins
-    state: restarted
-  when: jenkins_plugin_result.changed # Only restart if a plugin was actually installed/updated
-  ignore_errors: yes
-
-- name: Check if port 8080 is listening after all installations
-  ansible.builtin.wait_for:
-    port: 8080
-    timeout: 180
-    msg: "Timeout waiting for 8080 to respond after plugin install"
-  register: port_check_final
-  ignore_errors: yes
-
-- name: Print message if Jenkins is not running after plugin install
-  ansible.builtin.debug:
-    msg: "*== Jenkins NOT Running after Blue Ocean plugin install ==*"
-  when: port_check_final.failed == true
+    enabled: yes

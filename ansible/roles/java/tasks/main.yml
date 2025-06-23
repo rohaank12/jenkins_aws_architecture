@@ -1,0 +1,12 @@
+---
+- name: Install Java 21
+  apt:
+    name: openjdk-21-jdk
+    state: present
+    update_cache: yes
+
+- name: Set JAVA_HOME
+  lineinfile:
+    path: /etc/environment
+    line: 'JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64'
+    create: yes
