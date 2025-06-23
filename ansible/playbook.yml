@@ -3,11 +3,11 @@
   become: yes # Run all tasks with sudo privileges
 
   vars:
-    java_package: "openjdk-17-jdk" # Explicitly setting Java 17 package name
+    java_package: "openjdk-21-jdk" # Explicitly setting Java 17 package name
     docker_user: "{{ ansible_user }}" # User to add to the docker group (typically the SSH user)
 
   roles:
-    - role: jdk17
+    - role: jdk21
     - role: maven
     - role: docker
     - role: trivy
