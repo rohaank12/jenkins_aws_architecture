@@ -2,7 +2,7 @@
   ansible.builtin.apt:
     update_cache: yes
 
-- name: Install Java 17 JDK
+- name: Install Java 21 JDK
   ansible.builtin.package:
     name: "{{ java_package }}" # Uses the variable defined in playbook.yml
     state: present
